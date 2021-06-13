@@ -25,8 +25,8 @@ void star(const int* msg, const int& size, MPI_State& state) {
 }
 
 int main(int argc, char* argv[]) {
-    const int message = 12;
-    int send_buf[4] = {0, 0, 0, 0};
+    int message = 12;
+    int send_buf[4] = {0, 12, 12, 12};
     int received_buf;
     int gathered_buf[3];
     const int sz = 1;
@@ -35,22 +35,12 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     auto state = initial_state();
     while(M-- > 0) {
-        if (state.proc_rank == 0) {
-            int input_message;
-            for (int i = 0; i < state.proc_num - 1; i++) {
-                MPI_Recv(&input_message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &state.status);
-                cout << "The message was recieved " << "and it's: " << input_message << "\n";
-                send_buf[i + 1] += input_message;
-                cout << "Send " << send_buf[i + 1] << " to #" << i + 1 << endl;
-            }
-        } else {
-            star(&message, sz, state);
-        }
-
         MPI_Scatter(send_buf, sz, MPI_INT, &received_buf, sz, MPI_INT, 0, MPI_COMM_WORLD);
+        if (state.proc_rank == 0)
+            cout << "Send everyone " << message << endl;
 
         if (state.proc_rank != 0) {
-            cout << "Got " << received_buf << " from parent by process #" << state.proc_rank << "\n";
+            cout << "Got " << message << " from parent by process #" << state.proc_rank << "\n";
             received_buf += state.proc_rank;
         }
 
