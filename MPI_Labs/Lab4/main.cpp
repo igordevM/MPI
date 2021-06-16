@@ -1,10 +1,11 @@
 #include "mpi.h"
 #include <iostream>
+#include <stdio.h>
 #include <cmath>
 #include <locale.h>
 #include <time.h>
 
-#define N 2
+#define N 2 //порядок числа
 
 using namespace std;
 
@@ -108,7 +109,7 @@ int main(int argc, char* argv[])
 {
     void star(int argc, char* argv[], double numCount);
 
-    double numCount = 9;
+    double numCount = 8;
 
     if (numCount <= 4) {
         int* ans = multSomeNums(numCount, numCount, 0);
@@ -162,15 +163,15 @@ void star(int argc, char* argv[], double numCount) {
         MPI_Recv(thirdProcValue, 1, type_1, 3, MPI_ANY_TAG, MPI_COMM_WORLD, &state.status);
 
         int* mainAns = create_buff(N * numCount);
-        mult(procValue, firstProcValue, mainAns, N * numCount, N * numCount);
+        mult(procValue, firstProcValue, mainAns, N * numCount / 2, N * numCount / 2);
         copyNum(mainAns, procValue, N * numCount);
         if (!isNumZero(secondProcValue, N * numCount)) {
             copyNum(create_buff(N * numCount), mainAns, N * numCount);
-            mult(procValue, secondProcValue, mainAns, N * numCount, N * numCount);
+            mult(procValue, secondProcValue, mainAns, N * numCount / 2, N * numCount / 2);
             copyNum(mainAns, procValue, N * numCount);
             if (!isNumZero(thirdProcValue, N * numCount)) {
                 copyNum(create_buff(N * numCount), mainAns, N * numCount);
-                mult(procValue, thirdProcValue, mainAns, N * numCount, N * numCount);
+                mult(procValue, thirdProcValue, mainAns, N * numCount, N * numCount / 2);
                 copyNum(mainAns, procValue, N * numCount);
             }
         }
