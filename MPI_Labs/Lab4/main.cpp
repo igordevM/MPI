@@ -50,8 +50,7 @@ void print_num(int *num, int length)
     }
     cout << '\n';
 }
-void mult(int* num_1, int* num_2, int* res, int size_num_1, int size_num_2)
-{
+void mult(int* num_1, int* num_2, int* res, int size_num_1, int size_num_2) {
     cout << "num1 = "; print_num(num_1, size_num_1);
     cout << "num2 = "; print_num(num_2, size_num_2);
     for (int ix = 0; ix < size_num_1; ix++)
@@ -83,17 +82,28 @@ int* copyNum(int* num, int size) {
     return res;
 }
 
-int* multSomeNums(double numCount, int multNumCount, int proc_rank) {
-    int* ans = create_buff(N * numCount);
-    int* num_1 = create_num(2, N * numCount);
+int* multSomeNums(double numLength, int multNumCount, int proc_rank) {
+    int* ans = create_buff(numLength);
+    int* num_1 = create_num(2, numLength);
     for (int i = 0; i < multNumCount - 1; i++) {
-        mult(num_1, create_num(i, N), ans, N * numCount, N);
-        copyNum(ans, num_1, N * numCount);
+        mult(num_1, create_num(i, N), ans,  numLength - N, N);
+        copyNum(ans, num_1, numLength);
         if (i < multNumCount - 2)
-            copyNum(create_buff(N * numCount), ans, N * numCount);
+            copyNum(create_buff(numLength), ans, numLength);
     }
-    cout << "ans of proc " << proc_rank << " = "; print_num(ans, N * numCount);
+    cout << "ans of proc " << proc_rank << " = "; print_num(ans, numLength);
     return ans;
+}
+
+void multSomeNums(int* ans, double numLength, int multNumCount, int proc_rank) {
+    int* num_1 = create_num(2, numLength);
+    for (int i = 0; i < multNumCount - 1; i++) {
+        mult(num_1, create_num(i, N), ans,  numLength - N, N);
+        copyNum(ans, num_1, numLength);
+        if (i < multNumCount - 2)
+            copyNum(create_buff(numLength), ans, numLength);
+    }
+    cout << "ans of proc " << proc_rank << " = "; print_num(ans, numLength);
 }
 
 bool isNumZero(int* num, int size) {
@@ -109,10 +119,11 @@ int main(int argc, char* argv[])
 {
     void star(int argc, char* argv[], double numCount);
 
-    double numCount = 8;
+    double numCount = 2;
 
     if (numCount <= 4) {
-        int* ans = multSomeNums(numCount, numCount, 0);
+        int* ans = create_buff(N * numCount);
+        multSomeNums(ans,N * numCount, numCount, 0);
         cout << "ans = "; print_num(ans, N * numCount);
     } else
         star(argc, argv, numCount);
@@ -123,25 +134,27 @@ void star(int argc, char* argv[], double numCount) {
     MPI_Init(&argc, &argv);
     auto state = initial_state();
     srand(time(NULL));
+
+    int medianNum = ceil(numCount / 4);
+    int medianNumLength = N * medianNum + 2;
+
     int* procValue = create_buff(N * numCount);
     int* firstProcValue = create_buff(N * numCount);
     int* secondProcValue = create_buff(N * numCount);
     int* thirdProcValue = create_buff(N * numCount);
 
-    int medianNum = ceil(numCount / 4);
-
     if (state.proc_rank == 0) {
-        procValue = multSomeNums(numCount, medianNum, state.proc_rank);
+        multSomeNums(procValue, medianNumLength, medianNum, state.proc_rank);
     } else {
         if (!(numCount - medianNum * state.proc_rank == 1 ||
               numCount - medianNum * state.proc_rank <= 0)) {
             if (numCount - medianNum * (state.proc_rank + 1) == 1) {
-                procValue = multSomeNums(numCount, numCount - medianNum * state.proc_rank, state.proc_rank);
+                multSomeNums(procValue, medianNumLength + 2, numCount - medianNum * state.proc_rank, state.proc_rank);
             } else {
                 if (state.proc_rank == 3) {
-                    procValue = multSomeNums(numCount, numCount - medianNum * state.proc_rank, state.proc_rank);
+                    multSomeNums(procValue, medianNumLength + 2, numCount - medianNum * state.proc_rank, state.proc_rank);
                 } else {
-                    procValue = multSomeNums(numCount, medianNum, state.proc_rank);
+                    multSomeNums(procValue, medianNumLength, medianNum, state.proc_rank);
                 }
             }
         }
@@ -163,15 +176,16 @@ void star(int argc, char* argv[], double numCount) {
         MPI_Recv(thirdProcValue, 1, type_1, 3, MPI_ANY_TAG, MPI_COMM_WORLD, &state.status);
 
         int* mainAns = create_buff(N * numCount);
-        mult(procValue, firstProcValue, mainAns, N * numCount / 2, N * numCount / 2);
-        copyNum(mainAns, procValue, N * numCount);
+
+        mult(procValue, firstProcValue, mainAns, medianNumLength, medianNumLength);
         if (!isNumZero(secondProcValue, N * numCount)) {
-            copyNum(create_buff(N * numCount), mainAns, N * numCount);
-            mult(procValue, secondProcValue, mainAns, N * numCount / 2, N * numCount / 2);
             copyNum(mainAns, procValue, N * numCount);
+            copyNum(create_buff(N * numCount), mainAns, N * numCount);
+            mult(procValue, secondProcValue, mainAns, medianNumLength * 2, medianNumLength);
             if (!isNumZero(thirdProcValue, N * numCount)) {
+                copyNum(mainAns, procValue, N * numCount);
                 copyNum(create_buff(N * numCount), mainAns, N * numCount);
-                mult(procValue, thirdProcValue, mainAns, N * numCount, N * numCount / 2);
+                mult(procValue, thirdProcValue, mainAns, N * numCount - medianNumLength, medianNumLength);
                 copyNum(mainAns, procValue, N * numCount);
             }
         }
